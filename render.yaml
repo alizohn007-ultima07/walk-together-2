@@ -5,20 +5,34 @@ databases:
     plan: free
 
 services:
+  # Бэкенд (FastAPI)
   - type: web
     name: walks-backend
-    runtime: python
-    rootDir: backend          # Ключевой момент: указывает на папку бэкенда
-    buildCommand: pip install -r requirements.txt
-    # Ключевой момент: используйте $PORT, который предоставляет Render
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    runtime: docker
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
     envVars:
       - key: DATABASE_URL
-        fromDatabase:     # Автоматически получает строку подключения к БД
+        fromDatabase:
           name: walks-db
           property: connectionString
       - key: SECRET_KEY
-        generateValue: true  # Автоматически генерирует безопасный ключ
+        generateValue: true
       - key: CORS_ORIGINS
-        value: https://your-frontend-url.com  # Замените на ваш реальный фронтенд-домен
-    healthCheckPath: /healthz  # Рекомендуется: предотвращает сбой деплоя из-за проблем с БД
+        value: https://walks-frontend.onrender.com,http://localhost:5173,capacitor://localhost
+    healthCheckPath: /healthz
+
+  # Фронтенд (статический сайт)
+  - type: web
+    name: walks-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://walks-backend.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
